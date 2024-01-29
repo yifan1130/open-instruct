@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0,1
 export LD_LIBRARY_PATH=/home/yyu429/ENTER/envs/s5/lib
 MODEL_SIZE=7B
-NUM_GPUS=1
-BATCH_SIZE_PER_GPU=4
+NUM_GPUS=2
+BATCH_SIZE_PER_GPU=2
 TOTAL_BATCH_SIZE=16
 lr=5e-5
 seq_len=1024
 max_value=0.4
 max_value_final=0.05
-num_token=8
+num_token=2
 init_warmup=500
 final_warmup=1000
 GRADIENT_ACC_STEPS=$(($TOTAL_BATCH_SIZE/$NUM_GPUS/$BATCH_SIZE_PER_GPU))
@@ -43,7 +43,7 @@ echo "Training llama model ${MODEL_SIZE} using $NUM_GPUS GPUs, $BATCH_SIZE_PER_G
     --warmup_ratio 0.03 \
     --weight_decay 0. \
     --num_train_epochs 2 \
-    --output_dir output/llama2-7b_lr${lr}_seq_len${seq_len}_bsz${TOTAL_BATCH_SIZE}_initwp${init_warmup}_finalwp${final_warmup}_maxvalue${max_value}_final${max_value_final} \
+    --output_dir output/llama2-7b_lr${lr}_seq_len${seq_len}_bsz${TOTAL_BATCH_SIZE}_initwp${init_warmup}_finalwp${final_warmup}_maxvalue${max_value}_final${max_value_final}_num_token${num_token} \
     --with_tracking \
     --report_to tensorboard \
     --logging_steps 1 \
