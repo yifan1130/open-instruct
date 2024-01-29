@@ -34,6 +34,26 @@ from transformers import (
 from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
 
 logger = get_logger(__name__)
+class Scheduler:
+    def __init__(self,init_warmup,final_warmup,total_steps, max_value, max_value_final,schedule='linear'):
+        self.init_warmup = init_warmup
+        self.final_warmup = final_warmup
+        self.total_steps = total_steps
+        self.max_value = max_value
+        self.max_value_final=max_value_final
+        self.schedule = schedule
+
+    def calculate_schedule(self, step):
+        if step<=self.init_warmup:
+            return self.max_value
+        elif step>=self.total_steps-self.final_warmup:
+            return self.max_value_final
+        else:
+            if self.schedule == 'linear':
+                return self.max_value - (self.max_value-self.max_value_final) * (step-self.init_warmup) / (self.total_steps-self.init_warmup-self.final_warmup)
+            else:
+                return
+
 
 
 def parse_args():
@@ -223,6 +243,23 @@ def parse_args():
         action='store_true',
         help='Use 8bit optimizer from bitsandbytes. Not compatible with deepspeed (use deepspeed config instead).',
     )
+    parser.add_argument("--num_token",
+                        default=1,
+                        type=int)
+
+    parser.add_argument("--max_value",
+                        default=1.0,
+                        type=float)
+    parser.add_argument("--max_value_final",
+                        default=0.1,
+                        type=float)
+    parser.add_argument("--init_warmup",
+                        default=1000,
+                        type=float)
+    parser.add_argument("--final_warmup",
+                        default=1000,
+                        type=float)
+
     args = parser.parse_args()
 
     # Sanity checks
@@ -395,9 +432,14 @@ def main():
 
     # Load pretrained model and tokenizer
     if args.config_name:
-        config = AutoConfig.from_pretrained(args.config_name)
+        config = AutoConfig.from_pretrained(args.config_name, )
     elif args.model_name_or_path:
-        config = AutoConfig.from_pretrained(args.model_name_or_path)
+        # config = AutoConfig.from_pretrained(args.model_name_or_path)
+        ###Revision
+        config = transformers.AutoConfig.from_pretrained(
+            args.model_name_or_path, token="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", num_token=args.num_token,
+            max_value=args.max_value, _attn_implementation="eager"
+        )
     else:
         raise ValueError(
             "You are instantiating a new config instance from scratch. This is not supported by this script."
@@ -487,6 +529,9 @@ def main():
         model.print_trainable_parameters()
 
     # Preprocessing the datasets.
+    ###Revision
+    print(raw_datasets["train"])
+    print(f"max length is {args.max_seq_length}")
     if "prompt" in raw_datasets["train"].column_names and "completion" in raw_datasets["train"].column_names:
         encode_function = partial(
             encode_with_prompt_completion_format,
@@ -614,6 +659,8 @@ def main():
     completed_steps = 0
     starting_epoch = 0
 
+    ###Revision
+    clip_scheduler = Scheduler(init_warmup=args.init_warmup, final_warmup=args.final_warmup, total_steps=args.max_train_steps, max_value=args.max_value, max_value_final=args.max_value_final)
     # Potentially load in the weights and states from a previous save
     if args.resume_from_checkpoint:
         if args.resume_from_checkpoint is not None or args.resume_from_checkpoint != "":
@@ -666,6 +713,12 @@ def main():
         else:
             active_dataloader = train_dataloader
         for step, batch in enumerate(active_dataloader):
+            ###Revision
+            threshold = clip_scheduler.calculate_schedule(step)
+            for layer in model.module.model.model.layers:
+                layer.self_attn.max_value = threshold
+                layer.self_attn.clipping = True
+            
             with accelerator.accumulate(model):
                 outputs = model(**batch, use_cache=False)                
                 loss = outputs.loss

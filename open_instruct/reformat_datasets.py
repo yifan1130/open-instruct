@@ -235,6 +235,7 @@ def convert_stanford_alpaca_data(data_dir, output_dir, num_examples=None):
     output_path = os.path.join(output_dir, "stanford_alpaca_data.jsonl")
     with open(output_path, "w") as fout:
         for idx, example in enumerate(examples):
+            print(example)
             encoded_example = encode_instruction_example(
                 instruction=example["instruction"], 
                 input=example["input"], 
@@ -786,4 +787,11 @@ if __name__ == "__main__":
                                 fout.write(line)
         else:
             print(f"Processing {dataset} data with default configurations...")
-            globals()[f"convert_{dataset}_data"](os.path.join(args.raw_data_dir, dataset), os.path.join(args.output_dir, dataset))
+            # globals()[f"convert_{dataset}_data"](os.path.join(args.raw_data_dir, dataset), os.path.join(args.output_dir, dataset))
+            convert_gpt4_alpaca_data(
+                data_dir=os.path.join(args.raw_data_dir, "gpt4_alpaca"),
+                output_dir=os.path.join(args.output_dir, "tulu_v1", "gpt4_alpaca_subset"),
+                load_en=True,
+                load_zh=False,
+                num_examples=None
+            )

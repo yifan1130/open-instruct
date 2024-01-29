@@ -1,6 +1,7 @@
 results
 models
 wandb
+data
 data/*
 # !data/processed
 output/

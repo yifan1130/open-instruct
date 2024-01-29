@@ -106,7 +106,7 @@ def main(args):
                 model=model,
                 tokenizer=tokenizer,
                 prompts=prompts,
-                max_new_tokens=512,
+                max_new_tokens=256, ###Revision
                 batch_size=args.eval_batch_size,
                 stop_id_sequences=[[new_line_token]] if not args.use_chat_format else None,  # we only use stop token for non-chat format (usually applied to vanilla pretrained language models). For chat format, we will rely on the model knows when to stop.
                 do_sample=False,
